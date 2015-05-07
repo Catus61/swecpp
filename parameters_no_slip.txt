@@ -1,0 +1,14 @@
+xdim:                           16
+ydim:                           16
+dx:                             5.0e4
+dy:                             5.0e4
+n_iteration:                    20000
+dt:                               36
+write_out_interval:             1
+coriolis_parameter:            5.0e-5
+coriolis_beta:                  2e-11
+wind_stress:               	    0.2
+dissipation:                    1e-4
+friction:                        2e-8
+equilibrium_depth:             5100.0
+A:                               1.E6
