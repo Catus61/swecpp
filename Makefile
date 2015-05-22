@@ -1,24 +1,22 @@
 CC=g++
-CFLAGS=-g -l /home/jason/adolc_base/lib64
-LDFLAGS=-llapack -lgsl -gslcblas -lblas -lm -ladolc -L /home/jason/adolc_base/lib64 -Wl,-rpath,/home/jason/adolc_base/lib64
+CFLAGS= -l /home/jason/adolc_base/lib64 -I /usr/include -O2
+
+LDFLAGS=-llapack -lgsl -lgslcblas -lm -ladolc -larmadillo -L /home/jason/adolc_base/lib64 -Wl,-rpath,/home/jason/adolc_base/lib64
 BINARY=shallow_water
 
-SOURCE_FILES=shallow_water.c\
-             f_calc.c\
-             init.c\
-             io.c\
-             jacobiandelay.c\
-			 jacobiandrifter.c\
-             drifter.c\
-			 svdnudging.c
+SOURCE_FILES=shallow_water.cpp\
+             f_calc.cpp\
+             init.cpp\
+             io.cpp\
+			 jacobiandelay.cpp\
 
-OBJECTS=$(SOURCE_FILES:.c=.o)
+OBJECTS=$(SOURCE_FILES:.cpp=.o)
 
 all: $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $(BINARY)
 
 $(OBJECTS):
-	$(CC) $(CFLAGS) -o $@ -c $(@:.o=.c)
+	$(CC) $(CFLAGS) -o $@ -c $(@:.o=.cpp)
 
 
 clean:

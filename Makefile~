@@ -1,0 +1,22 @@
+CC=g++
+CFLAGS= -l /home/jason/adolc_base/lib64
+LDFLAGS=-llapack -lgsl -lgslcblas -lm -ladolc -L /home/jason/adolc_base/lib64 -Wl,-rpath,/home/jason/adolc_base/lib64
+BINARY=shallow_water
+
+SOURCE_FILES=shallow_water.cpp\
+             f_calc.cpp\
+             init.cpp\
+             io.cpp\
+             jacobiandelay.cpp\
+
+OBJECTS=$(SOURCE_FILES:.cpp=.o)
+
+all: $(OBJECTS)
+	$(CC) $(OBJECTS) $(LDFLAGS) -o $(BINARY)
+
+$(OBJECTS):
+	$(CC) $(CFLAGS) -o $@ -c $(@:.o=.cpp)
+
+
+clean:
+	rm $(OBJECTS) $(BINARY)

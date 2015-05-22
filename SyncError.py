@@ -8,7 +8,7 @@ import math
 
 init_time = 0
 nodes = 1000
-end_time = 1000
+end_time = 10000
 
 step = (end_time - init_time) / nodes
 

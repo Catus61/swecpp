@@ -1,27 +1,26 @@
-#define ksyn   0.4      //synchronization parameter k
+const double ksyn =0.4;      //synchronization parameter k
 
-#define tstart 00    //synchronization time t
-#define tsyn   500    //synchronization time t
+const int tstart = 0;    //synchronization time t
+const int tsyn = 500;   //synchronization time t
 
-#define Dm  8     //Time Delay Dimension
-#define tau 10     //Time Delay
-#define msrdim 249
+const int Dm = 8;     //Time Delay Dimension
+const int tau = 10;     //Time Delay
+const int msrdim = 249;
 
-#define eps 0.001       //delta x
+//const double eps = 0.001;       //delta x
 
 struct drifter{
     double x, y;
     double u, v;
 };
 
-#include <adolc/adolc.h>
-
 // from f_calc.c
-void Fcalc(double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, const int **n, const unsigned int *lat, const unsigned int *lon);
+template <class T>
+void Fcalc(T *fields_dot, const T *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, int **n, const unsigned int *lat, const unsigned int *lon);
 
-void RK4(double *fields_dot, double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, const int **n, const unsigned int *lat, const unsigned int *lon);
+template <class T>
+void RK4(T *fields_dot, T *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, int **neighbors, const unsigned int *lat, const unsigned int *lon);
 
-void RK4_ad(adouble *fields_dot, adouble *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, const int **neighbors, const unsigned int *lat, const unsigned int *lon);
 
 // from init.c
 
@@ -50,17 +49,14 @@ void print_drifter(int udr, int *uarray, struct drifter *drifter, long int ncycl
 void print_state(double *field, long int ncycle, int xdim, int ydim, unsigned int *print_out_order);
 
 //from jacobian.c
+//
+void jacobiandelay(double *fields_delay, const double *fields, const double *parameter, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, int **neighbors, const unsigned int *lat, const unsigned int *lon );
 
-void jacobiandelay(double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, const int **neighbors, const unsigned int *lat, const unsigned int *lon, const unsigned int *print_out_order, long int ncycle, double *fields_diff, double *jac);
+void jacobiandrifter(const struct drifter *ptdrifter, const struct drifter *ptmsrdrifter, size_t ndr, double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, int **neighbors, const unsigned int *lat, const unsigned int *lon, const unsigned int *print_out_order, long int ncycle, double * drifter_diff, double *jacdrifter);
 
-    void jacobiandelay_ad(double *fields_delay, const double *fields, const double *parameter, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, int **neighbors, unsigned int *lat, unsigned int *lon, unsigned int *print_out_order, const long int ncycle);
+extern "C" void dgesvd(char* jobu, char* jobvt, int* m, int* n, double* a, int* lda, double* s, double* u, int* ldu, double* vt, int* ldvt, double* work, int* lwork, int* info );
 
-
-void jacobiandrifter(const struct drifter *ptdrifter, const struct drifter *ptmsrdrifter, size_t ndr, double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, const int **neighbors, const unsigned int *lat, const unsigned int *lon, const unsigned int *print_out_order, long int ncycle, double * drifter_diff, double *jacdrifter);
-
-void dgesvd(char* jobu, char* jobvt, int* m, int* n, double* a, int* lda, double* s, double* u, int* ldu, double* vt, int* ldvt, double* work, int* lwork, int* info );
-
-void dgelss( int* m, int* n, int* nrhs, double* a, int* lda, double* b, int* ldb, double* s, double* rcond, int* rank, double* work, int* lwork, int* iwork, int* info );
+extern "C" void dgelss( int* m, int* n, int* nrhs, double* a, int* lda, double* b, int* ldb, double* s, double* rcond, int* rank, double* work, int* lwork, int* iwork, int* info );
 
 // from drifter.c
 
@@ -72,10 +68,11 @@ void Fcaldrift(struct drifter *ptdrifter, size_t ndr, const double *fields, int 
 
 void advect(struct drifter *ptdrifter, int ndr, int dx, int dy, double xdim, double ydim, double dt);
 
-void RK4drift(struct drifter *ptdrifter, size_t ndr, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, const int **neighbors, const unsigned int *lat, const unsigned *lon, double dt);
+void RK4drift(struct drifter *ptdrifter, size_t ndr, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, int **neighbors, const unsigned int *lat, const unsigned *lon, double dt);
+
 //jacobiandrifter.c
 
-void driftdelay(const struct drifter *ptdrifter, double ***delaytensor, size_t ndr,  double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, const unsigned int *lat, const unsigned *lon, const int **neighbors, double dt);
+void driftdelay(const struct drifter *ptdrifter, double ***delaytensor, size_t ndr,  double *fields_dot, const double *fields, const double *parameters, const double *forcing, int xdim, int ydim, double dx, double dy, const unsigned int *lat, const unsigned *lon, int **neighbors, double dt);
 
 void coupling(int svd_m, int svd_n, double *jacT, double *fields_diff, double*nudge);
 

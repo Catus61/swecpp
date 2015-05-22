@@ -36,32 +36,31 @@ void jacobiandrifter(const struct drifter *ptdrifter, const struct drifter *ptms
     * memory for saving the fields
     */
 
-    double *fields_temp = calloc(3 * tdim, sizeof(double));
+    double *fields_temp = new double[3 * tdim];
     memcpy(fields_temp, fields, 3 * tdim * sizeof(double));
 
-    double *fields_msr;
-    fields_msr = calloc(3 * tdim, sizeof(double));
+    double *fields_msr = new double[3 * tdim];
 
     read_field(fields_msr, "u", xdim, ydim, ncycle - 1, print_out_order);
     read_field(fields_msr + tdim, "v", xdim, ydim, ncycle - 1, print_out_order);
     read_field(fields_msr + 2 * tdim, "P", xdim, ydim, ncycle - 1, print_out_order);
 
 
-    double *fields_msr_save = calloc(3 * tdim, sizeof(double));
+    double *fields_msr_save = new double[3 * tdim];
     memcpy(fields_msr_save, fields_msr, 3 * tdim * sizeof(double));
 
     double ***delaytensor_model, ***delaytensor_data;
 
-    delaytensor_model = calloc(ndr, sizeof(double**));
-    delaytensor_data = calloc(ndr, sizeof(double**));
+    delaytensor_model = new double**[ndr];
+    delaytensor_data = new double**[ndr];
 
 
     for(i = 0; i < ndr; i++ ){
-        delaytensor_model[i] = calloc(Dm, sizeof(double*));
-        delaytensor_data[i] = calloc(Dm, sizeof(double*));
+        delaytensor_model[i] = new double*[Dm];
+        delaytensor_data[i] = new double*[Dm];
         for(j = 0; j < Dm; j++){
-            delaytensor_model[i][j] = calloc(2, sizeof(double));
-            delaytensor_data[i][j] = calloc(2, sizeof(double));
+            delaytensor_model[i][j] = new double[2];
+            delaytensor_data[i][j] = new double[2];
         }
     }
 

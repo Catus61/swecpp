@@ -1,7 +1,9 @@
 #include <iostream>
 #include <string>
+#include <time.h>
 #include <adolc/adolc.h>
 #include <armadillo>
+#include <typeinfo>
 
 using namespace std;
 using namespace arma;
@@ -130,10 +132,9 @@ int main (int argc, char ** argv)
 
     initialize_geometry(xdim, ydim, neighbors, lat, lon, print_out_order);
 
-    lat = const_cast<unsigned*>lat;
-    lon = const_cast<unsigned*>lat;
-    neighbors = const_cast<int**>neighbors;
-    print_out_order = const_cast<unsigned*>print_out_order;
+    lat = const_cast<unsigned*>(lat);
+    lon = const_cast<unsigned*>(lat);
+    print_out_order = const_cast<unsigned*>(print_out_order);
 
     /*
     * memory for physical parameters and forcing
@@ -217,15 +218,23 @@ int main (int argc, char ** argv)
 
     int svd_mi = Dm * msrdim + udr * 2 * Dm, svd_n = 3 * tdim;
 
-    double *jac = calloc(Dm * tdim * 3 * tdim, sizeof(double));
-    double *field_diff = calloc(Dm * msrdim, sizeof(double));
-    double *drifter_diff= calloc(ndr * 2 * Dm, sizeof(double));
-    double *jacdrifter = calloc(ndr * 2 * Dm * svd_n, sizeof(double));
+    //double *jac = new double[Dm * tdim * 3 * tdim];
+
+    double **jac = new double*[Dm * tdim];
+    for(i = 0; i < Dm * tdim; i++)
+        jac[i] = new double [3 * tdim];
+
+//    double *field_diff = new double[Dm * tdim];
+//    double *drifter_diff= new double[ndr * 2 * Dm];
+//    double *jacdrifter = new double[ndr * 2 * Dm * svd_n];
 
 
-    double *jacT = calloc(svd_mi * svd_n, sizeof(double));
-    double *diff = calloc(svd_mi , sizeof(double));
-    double *nudge = calloc(svd_n, sizeof(double));
+//    double *jacT = new double[svd_mi * svd_n];
+
+//    double *diff = new double[svd_mi];
+
+    double *fields_delay = new double[Dm * tdim];
+    double *fields_msr = new double[Dm * tdim];
 
     /*
     * loop through time steps to do the actual simulation
@@ -234,65 +243,109 @@ int main (int argc, char ** argv)
     if(tsyn > 0) {
         for (ncycle = 1; ncycle < n_iter; ncycle++) {
             if (ncycle >= tstart && ncycle < tstart + tsyn) {
-                jacobiandelay(fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon, print_out_order, ncycle, field_diff, jac);
+
+                clock_t duration = clock();
+
+                // import data imformation
+                for (i = 0; i < Dm; i++){
+                    read_field(fields_msr + i * tdim, "P" , xdim, ydim, ncycle + i * tau - 1, print_out_order);
+                }
 
                 //adolc
-                //void jacobiandelay_ad(double *fields_delay, const double *fields, const double *parameter, const double *forcing, int xdim, int ydim, double dx, double dy, double dt, int **neighbors, unsigned int *lat, unsigned int *lon, unsigned int *print_out_order, const long int ncycle);
 
-                jacobiandrifter(model_ptdrifter, data_ptdrifter, ndr, fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon, print_out_order, ncycle, drifter_diff, jacdrifter);
+                trace_on(1);
+
+                const double *fields_const_pointer = const_cast<double*>(fields);
+                jacobiandelay(fields_delay, fields_const_pointer, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon);
+
+                trace_off();
+
+                jacobian(1, Dm * tdim, 3 * tdim, fields_const_pointer, jac);
+
+                vec field_diff(Dm * tdim);
+
+                for(i = 0; i < Dm * tdim; i++)
+                    field_diff[i] = fields_msr[i] - fields_delay[i];
+
+                mat jac_svd(Dm * tdim, 3 * tdim);
+
+                for(i = 0 ; i < Dm * tdim; i++)
+                    for(j = 0; j < 3 * tdim; j++)
+                        jac_svd(i, j) = jac[i][j];
+
+                mat U;
+                vec s;
+                mat V;
+
+                mat S(3 * tdim, Dm * tdim);
+
+                svd(U, s, V, jac_svd);
+
+                for(i = 0; i < 3 * tdim; i++)
+                    S(i,i) = 1.0 / s(i);
+
+                mat jac_inverse = V * S * U.t();
+
+                vec nudge(3 * tdim);
+                nudge = jac_inverse * field_diff;
+
+                //jacobiandrifter(model_ptdrifter, data_ptdrifter, ndr, fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon, print_out_order, ncycle, drifter_diff, jacdrifter);
                 
-                int k;
-           
-                for(i = 0; i < Dm * msrdim; i++)
-                    diff[i] = field_diff[i];
-           
-                for(i = 0; i < udr; i++)
-                    for(j = 0; j < Dm; j++){
-                        diff[Dm * msrdim + j * udr + i] = drifter_diff[j * ndr + udrarray[i] - 1];
-                        diff[Dm * msrdim + j * udr + i + udr * Dm ] = drifter_diff[j * ndr + udrarray[i] - 1 + ndr * Dm];
-                    }
+//                int k;
+//
+//                for(i = 0; i < Dm * msrdim; i++)
+//                    diff[i] = field_diff[i];
+//
+//                for(i = 0; i < udr; i++)
+//                    for(j = 0; j < Dm; j++){
+//                        diff[Dm * msrdim + j * udr + i] = drifter_diff[j * ndr + udrarray[i] - 1];
+//                        diff[Dm * msrdim + j * udr + i + udr * Dm ] = drifter_diff[j * ndr + udrarray[i] - 1 + ndr * Dm];
+//                    }
 
-                for(i = 0; i < Dm * tdim; i++){
-                    for(j = 0; j < svd_n; j++){
-                        jacT[j * svd_mi + i / tdim * msrdim + i % tdim] = jac[i * svd_n + j];
-                    }
-                }
+//                for(i = 0; i < Dm * tdim; i++){
+//                    for(j = 0; j < svd_n; j++){
+//                        jacT[j * svd_mi + i / tdim * msrdim + i % tdim] = jac[i * svd_n + j];
+//                    }
+//                }
+//
+//                for(i = 0; i < udr; i++){
+//                    for(j = 0; j < Dm; j++){
+//                        for(k = 0; k < svd_n; k++){
+//                            //if(k <= 3)
+//                            //    printf("%d, %d\n", k * svd_mi + (i + j * udr + Dm * tdim), ((udrarray[i] - 1) + j * ndr) * svd_n + k);
+//                            jacT[k * svd_mi + (i + j * udr + Dm * msrdim)] = jacdrifter[((udrarray[i] - 1) + j * ndr) * svd_n + k];
+//                            jacT[k * svd_mi + (i + j * udr + Dm * msrdim + udr * Dm)] = jacdrifter[((udrarray[i] - 1) + j * ndr + Dm * ndr) * svd_n + k];
+//                        }
+//                    }
+//                }
 
+                //coupling(svd_mi, svd_n, jacT, diff, nudge);
 
-                for(i = 0; i < udr; i++){
-                    for(j = 0; j < Dm; j++){
-                        for(k = 0; k < svd_n; k++){
-                            //if(k <= 3)
-                            //    printf("%d, %d\n", k * svd_mi + (i + j * udr + Dm * tdim), ((udrarray[i] - 1) + j * ndr) * svd_n + k);
-                            jacT[k * svd_mi + (i + j * udr + Dm * msrdim)] = jacdrifter[((udrarray[i] - 1) + j * ndr) * svd_n + k];
-                            jacT[k * svd_mi + (i + j * udr + Dm * msrdim + udr * Dm)] = jacdrifter[((udrarray[i] - 1) + j * ndr + Dm * ndr) * svd_n + k];
-                        }
-                    }
-                }
-
-                coupling(svd_mi, svd_n, jacT, diff, nudge);
-
-                for(i = 0; i < 10; i++)
-                    printf("%f\n", nudge[i]);
-
-                RK4(fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon);
+//                for(i = 0; i < 10; i++)
+//                    printf("%f\n", nudge[i]);
+//
+//                //RK4(fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon);
                 for(i = 0; i < 2 * tdim; i++)
                     fields[i] += 0.5 * nudge[i];
-               
+
                 for(i = 2 * tdim; i < 3 * tdim; i++)
                     fields[i] += 1.5 * nudge[i];
 
-                memcpy(model_ptdrifter, data_ptdrifter, ndr * sizeof(struct drifter));
+//                memcpy(model_ptdrifter, data_ptdrifter, ndr * sizeof(struct drifter));
 //                drift(model_ptdrifter, ndr, fields, xdim, ydim, dx, dy, lat, lon, dt);
 
                 print_state(fields, ncycle, xdim, ydim, print_out_order);
+
+                duration -= clock();
+
+                cout << "time is " << (-1.0 ) * (float) (duration) / (CLOCKS_PER_SEC) << endl;
                 printf("ncycle!! = %li \n", ncycle);
                 
-                print_drifter(udr, udrarray, model_ptdrifter, ncycle);
+                //print_drifter(udr, udrarray, model_ptdrifter, ncycle);
 
             }
             else {
-                RK4(fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon);
+                //RK4(fields_dot, fields, parameters, forcing, xdim, ydim, dx, dy, dt, neighbors, lat, lon);
                 print_state(fields, ncycle, xdim, ydim, print_out_order);
                 printf("ncycle = %li \n", ncycle);
             }
@@ -311,16 +364,16 @@ int main (int argc, char ** argv)
 
 	printf("\n");
 
-   
-    free(model_ptdrifter);
-    free(data_ptdrifter);
-    free(jac);
-    free(field_diff);
-    free(drifter_diff);
-    free(jacdrifter);
-    free(jacT);
-    free(diff);
-    free(nudge);
+  
+    delete[]fields_delay;
+    delete[]model_ptdrifter;
+    delete[]data_ptdrifter;
+    delete[]jac;
+//    delete[]drifter_diff;
+//    delete[]jacdrifter;
+//    delete[]jacT;
+//    delete[]diff;
+//    delete[]nudge;
 
     return (0);
 }
